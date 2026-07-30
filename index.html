@@ -632,7 +632,7 @@
       <div class="cover-stage" id="coverStage">
         <canvas class="visualizer-canvas" id="visualizerCanvas" aria-hidden="true"></canvas>
         <div class="cover-frame" id="coverFrame">
-          <img class="album-art" id="albumArt" alt="" />
+          <img class="album-art" id="albumArt" src="https://i.scdn.co/image/ab67616d0000b27338906032688bb13b135ce19a" alt="Pulsewidth by Aphex Twin album artwork" />
         </div>
         <button class="cover-play" id="coverPlayButton" type="button" aria-label="Play preview">
           <span id="coverPlayIcon"></span>
@@ -640,8 +640,8 @@
       </div>
 
       <div class="track-info">
-        <h1 class="track-title" id="trackTitle">Loading...</h1>
-        <p class="artist" id="artist"></p>
+        <h1 class="track-title" id="trackTitle">Pulsewidth</h1>
+        <p class="artist" id="artist">Aphex Twin</p>
         <div class="track-metadata" id="trackMetadata" hidden></div>
         <p class="description" id="description"></p>
       </div>
@@ -779,8 +779,8 @@
   <script>
     "use strict";
 
-    const STORAGE_KEY = "songOfTheWeekFromScratchV1"; // Legacy browser-only backup, used only for optional migration.
-    const APP_VERSION = "2026-07-30-cloudflare-sync-v3";
+    const APP_BUILD = "cloudflare-button-race-fix-2026-07-30";
+    const STORAGE_KEY = "songOfTheWeekFromScratchV1"; // Kept for automatic migration from the prior build.
     const ADMIN_SESSION_KEY = "calebsMusicAdminTokenV1";
     const SITE_DATA_API = "/api/site-data";
     const ADMIN_LOGIN_API = "/api/admin-login";
@@ -858,11 +858,7 @@
       cloudSaveStatus: $("cloudSaveStatus")
     };
 
-    // Public rendering begins with the built-in queue, then D1 replaces it.
-    // Browser-local data is deliberately not used as the public source because
-    // that caused Safari and Chrome to show different queues.
-    let legacyLocalData = loadLegacyData();
-    let data = clone(DEFAULT_DATA);
+    let data = loadData();
     let adminToken = safeSessionGet(ADMIN_SESSION_KEY) || "";
     let remoteInitialized = false;
     let remoteUpdatedAt = "";
@@ -888,7 +884,10 @@
     let spotifyIframeApi = null;
     let spotifyController = null;
     let spotifyControllerReady = false;
+    let spotifyControllerCreating = false;
+    let spotifyControllerGeneration = 0;
     let spotifyLoadedUrl = "";
+    let spotifyRequestedUrl = "";
     let spotifyPlayAttemptCounter = 0;
     let spotifyHeartbeatTimer = null;
     let spotifyPlayback = {
@@ -970,28 +969,13 @@
       return normalized;
     }
 
-    function loadLegacyData() {
+    function loadData() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? normalizeData(JSON.parse(raw)) : null;
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return normalizeData(saved || clone(DEFAULT_DATA));
       } catch {
-        return null;
+        return clone(DEFAULT_DATA);
       }
-    }
-
-    function comparableData(value) {
-      const normalized = normalizeData(value);
-      return JSON.stringify({
-        firstSwitchDate: normalized.firstSwitchDate,
-        songs: normalized.songs
-      });
-    }
-
-    function legacyDataDiffersFrom(remoteData) {
-      return Boolean(
-        legacyLocalData &&
-        comparableData(legacyLocalData) !== comparableData(remoteData)
-      );
     }
 
     function setCloudStatus(message, type = "") {
@@ -1083,9 +1067,13 @@
 
     async function fetchSharedData({ force = false } = {}) {
       try {
-        const response = await fetch(`${SITE_DATA_API}?t=${Date.now()}&v=${encodeURIComponent(APP_VERSION)}`, {
+        const response = await fetch(`${SITE_DATA_API}?t=${Date.now()}`, {
           cache: "no-store",
-          headers: { "accept": "application/json" }
+          credentials: "same-origin",
+          headers: {
+            "accept": "application/json",
+            "cache-control": "no-cache"
+          }
         });
         if (!response.ok) throw new Error(`Load failed (${response.status})`);
         const result = await response.json();
@@ -1100,13 +1088,8 @@
         }
         return result;
       } catch (error) {
-        console.error("Shared Cloudflare data load failed:", error);
-        if (isAdminOpen()) {
-          setCloudStatus(
-            `Shared storage is unreachable (${error.message}). The built-in queue remains visible, but edits will not sync until the DB binding is fixed.`,
-            "error"
-          );
-        }
+        console.error(error);
+        if (isAdminOpen()) setCloudStatus("Shared storage is unreachable. Changes are currently only in the local backup.", "error");
         return null;
       }
     }
@@ -1230,7 +1213,20 @@
     }
 
     function trySpotifyPlayback(song) {
-      if (!song?.links?.spotify || !spotifyController || !spotifyControllerReady) return false;
+      if (!song?.links?.spotify) return false;
+
+      // A D1 refresh can render the same song again while Spotify is still
+      // creating its iframe controller. Make sure a controller is requested,
+      // then wait for Spotify's official ready event rather than talking to a
+      // stale controller.
+      if (!spotifyController || !spotifyControllerReady) {
+        mountSpotifyPlayer(song.links.spotify);
+        elements.audioStatus.textContent = "Spotify is loading. Try the artwork button again in a moment.";
+        return false;
+      }
+
+      const controllerAtClick = spotifyController;
+      const attempt = ++spotifyPlayAttemptCounter;
 
       try {
         const nearEnd =
@@ -1238,45 +1234,42 @@
           (spotifyPlayback.duration > 0 &&
             spotifyPlayback.position >= spotifyPlayback.duration - 500);
 
-        // Use Spotify's explicit controls instead of togglePlay(). The Embed
-        // can report a stale paused state, which makes togglePlay unreliable.
+        // This is the behavior that proved most reliable with Spotify track
+        // previews: use togglePlay for ordinary paused playback, but perform
+        // an explicit restart after the preview has concluded.
         if (nearEnd) {
           spotifyPlayback.hasEnded = false;
           spotifyPlayback.position = 0;
           spotifyPlayback.isPaused = false;
           spotifyPlayback.isBuffering = true;
           setPlayIcons(true);
-          if (typeof spotifyController.restart === "function") {
-            spotifyController.restart();
+
+          if (typeof controllerAtClick.restart === "function") {
+            controllerAtClick.restart();
           } else {
-            spotifyController.seek(0);
-            if (typeof spotifyController.resume === "function") {
-              spotifyController.resume();
-            } else {
-              spotifyController.play();
-            }
+            controllerAtClick.seek(0);
+            controllerAtClick.play();
           }
           return true;
         }
 
         if (!spotifyPlayback.isPaused && !spotifyPlayback.isBuffering) {
-          spotifyController.pause();
-        } else if (typeof spotifyController.resume === "function") {
-          spotifyController.resume();
-        } else if (typeof spotifyController.play === "function") {
-          spotifyController.play();
+          controllerAtClick.pause();
         } else {
-          spotifyController.togglePlay();
+          controllerAtClick.togglePlay();
         }
+
+        // If this controller was replaced by a later render, do not let this
+        // click alter the icon for the new controller.
+        setTimeout(() => {
+          if (attempt !== spotifyPlayAttemptCounter || controllerAtClick !== spotifyController) return;
+          if (!spotifyControllerReady) setPlayIcons(false);
+        }, 900);
         return true;
       } catch (error) {
         console.error(error);
         try {
-          if (typeof spotifyController.play === "function") {
-            spotifyController.play();
-          } else {
-            spotifyController.togglePlay();
-          }
+          controllerAtClick.togglePlay();
           return true;
         } catch (fallbackError) {
           console.error(fallbackError);
@@ -1457,6 +1450,7 @@
 
     function finishSpotifyPlayback() {
       clearSpotifyHeartbeat();
+      ++spotifyPlayAttemptCounter;
       spotifyPlayback.isPaused = true;
       spotifyPlayback.isBuffering = false;
       spotifyPlayback.hasEnded = true;
@@ -1467,16 +1461,47 @@
       stopVisualizerEffects();
     }
 
-    function attachSpotifyController(controller) {
+    function attachSpotifyController(controller, generation, initialUrl) {
+      // Multiple public renders can happen during startup: first the built-in
+      // fallback queue, then the shared D1 queue. Ignore any controller that
+      // belongs to an older render so the album button never points at a
+      // detached Spotify iframe.
+      if (generation !== spotifyControllerGeneration) {
+        try { controller.destroy?.(); } catch {}
+        return;
+      }
+
       spotifyController = controller;
       spotifyControllerReady = false;
+      spotifyControllerCreating = false;
+      spotifyLoadedUrl = initialUrl;
+
+      const isCurrentController = () =>
+        controller === spotifyController && generation === spotifyControllerGeneration;
 
       controller.addListener("ready", () => {
+        if (!isCurrentController()) return;
         spotifyControllerReady = true;
-        elements.coverPlayButton.disabled = false;
+
+        // The requested song may have changed while the iframe was loading.
+        if (spotifyRequestedUrl && spotifyRequestedUrl !== spotifyLoadedUrl) {
+          try {
+            controller.loadEntity(spotifyRequestedUrl);
+            spotifyLoadedUrl = spotifyRequestedUrl;
+          } catch (error) {
+            console.error(error);
+          }
+        }
+
+        const currentSong = data.songs[displayedIndex];
+        const hasSource = Boolean(
+          nativePreviewUrlForSong(currentSong) ||
+          spotifyEntityFromUrl(currentSong?.links?.spotify || "")
+        );
+        elements.coverPlayButton.disabled = !hasSource;
+        elements.audioStatus.textContent = "";
 
         // Explicitly delegate media permissions to Spotify's nested iframe.
-        // This helps when the page itself is embedded by another site.
         const spotifyFrame = elements.spotifyEmbed.querySelector("iframe");
         if (spotifyFrame) {
           spotifyFrame.setAttribute(
@@ -1488,6 +1513,7 @@
       });
 
       controller.addListener("playback_started", event => {
+        if (!isCurrentController()) return;
         spotifyPlayback.isPaused = false;
         spotifyPlayback.isBuffering = false;
         spotifyPlayback.hasEnded = false;
@@ -1497,6 +1523,7 @@
       });
 
       controller.addListener("playback_update", event => {
+        if (!isCurrentController()) return;
         const state = event?.data || {};
         const reachedEnd =
           Boolean(state.isPaused) &&
@@ -1536,26 +1563,55 @@
     }
 
     function mountSpotifyPlayer(spotifyUrl) {
-      if (!spotifyUrl) return;
-      spotifyLoadedUrl = spotifyUrl;
-      elements.spotifyPlayerShell.hidden = false;
-      elements.audioStatus.textContent = "";
-      elements.coverPlayButton.disabled = true;
+      if (!spotifyEntityFromUrl(spotifyUrl)) return;
 
+      spotifyRequestedUrl = spotifyUrl;
+      elements.spotifyPlayerShell.hidden = false;
+
+      // Reuse the one live controller. Re-rendering the same song must not
+      // create another iframe or replace the controller behind the button.
       if (spotifyController && spotifyControllerReady) {
-        try {
-          spotifyController.loadEntity(spotifyUrl);
-          elements.coverPlayButton.disabled = false;
-          return;
-        } catch {}
+        if (spotifyLoadedUrl !== spotifyUrl) {
+          try {
+            spotifyController.loadEntity(spotifyUrl);
+            spotifyLoadedUrl = spotifyUrl;
+            spotifyPlayback.isPaused = true;
+            spotifyPlayback.isBuffering = false;
+            spotifyPlayback.position = 0;
+            spotifyPlayback.duration = 0;
+            spotifyPlayback.hasEnded = false;
+            setPlayIcons(false);
+          } catch (error) {
+            console.error(error);
+          }
+        }
+        elements.coverPlayButton.disabled = false;
+        return;
       }
 
-      if (!spotifyIframeApi) return;
+      // A controller is already being created for this page. Merely update
+      // spotifyRequestedUrl; its ready callback will load the latest song.
+      if (spotifyControllerCreating) {
+        elements.coverPlayButton.disabled = true;
+        return;
+      }
+
+      if (!spotifyIframeApi) {
+        elements.coverPlayButton.disabled = true;
+        return;
+      }
+
+      spotifyControllerCreating = true;
+      spotifyControllerReady = false;
+      elements.coverPlayButton.disabled = true;
       elements.spotifyEmbed.innerHTML = "";
+
+      const generation = ++spotifyControllerGeneration;
+      const initialUrl = spotifyRequestedUrl;
       spotifyIframeApi.createController(
         elements.spotifyEmbed,
-        { url: spotifyUrl, width: "100%", height: 152 },
-        attachSpotifyController
+        { url: initialUrl, width: "100%", height: 152 },
+        controller => attachSpotifyController(controller, generation, initialUrl)
       );
     }
 
@@ -1585,9 +1641,16 @@
       if (hasSpotify) {
         mountSpotifyPlayer(spotifyUrl);
       } else {
-        if (spotifyController && spotifyControllerReady) {
+        spotifyRequestedUrl = "";
+        spotifyLoadedUrl = "";
+        spotifyControllerCreating = false;
+        spotifyControllerReady = false;
+        ++spotifyControllerGeneration;
+        if (spotifyController) {
           try { spotifyController.pause(); } catch {}
+          try { spotifyController.destroy?.(); } catch {}
         }
+        spotifyController = null;
         elements.spotifyEmbed.innerHTML = "";
       }
 
@@ -1666,7 +1729,7 @@
 
       elements.audioStatus.textContent =
         song?.links?.spotify
-          ? "Spotify is still loading. Use the Spotify player below once it appears."
+          ? "Spotify is still loading. The artwork button will activate when the player is ready."
           : "No playable audio is available for this song.";
     }
 
@@ -2569,27 +2632,10 @@
         elements.loginDialog.close();
         const remote = await fetchSharedData({ force: true });
         openAdmin();
-
-        if (remote?.initialized && remote.data && legacyDataDiffersFrom(remote.data)) {
-          const publishLegacy = confirm(
-            "This browser contains local-only queue changes from an older version. " +
-            "Press OK to publish those changes to every device. Press Cancel to keep the shared Cloudflare version."
-          );
-
-          if (publishLegacy) {
-            data = normalizeData(legacyLocalData);
-            renderAdmin();
-            renderPublic(data.selectedIndex);
-            localRevision += 1;
-            await persistRemoteData();
-          }
-          legacyLocalData = null;
-        }
-
         if (!remote?.initialized) {
           setCloudStatus("Creating the shared site data for the first time…");
           saveData({ immediate: true });
-        } else if (!legacyDataDiffersFrom(remote.data)) {
+        } else {
           setCloudStatus("Connected to shared Cloudflare storage.", "success");
         }
       } catch (error) {
@@ -2762,32 +2808,13 @@
 
     window.addEventListener("resize", resizeVisualizer);
 
-    document.documentElement.dataset.appVersion = APP_VERSION;
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations()
-        .then(registrations => registrations.forEach(registration => registration.unregister()))
-        .catch(() => {});
-    }
-
+    document.documentElement.dataset.appBuild = APP_BUILD;
     setPlayIcons(false);
     resizeVisualizer();
     renderPublic(publicSongIndex());
     if (!animationFrame) animationFrame = requestAnimationFrame(drawVisualizer);
 
     fetchSharedData({ force: true });
-
-    window.addEventListener("pageshow", event => {
-      if (event.persisted || document.visibilityState === "visible") {
-        fetchSharedData({ force: true });
-      }
-    });
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && !isAdminOpen()) {
-        fetchSharedData({ force: true });
-      }
-    });
 
     setInterval(async () => {
       if (!isAdminOpen()) {
