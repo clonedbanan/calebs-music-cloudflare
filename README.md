@@ -1,35 +1,47 @@
-# Caleb's Music of the Week — Cloudflare Pages + D1
+# Caleb's Music of the Week — Cloudflare sync repair
 
-This is the D1-only Cloudflare conversion of the working Netlify version. The exported queue is included and is inserted into D1 automatically the first time `/api/site-data` is opened.
+This build fixes two related problems:
 
-## Cloudflare Pages settings
+1. The repository's `wrangler.toml` declared itself as the source of truth but did not contain the D1 binding, so `/api/site-data` could not reach the database.
+2. The public page previously started from each browser's `localStorage`, allowing Safari and Chrome to show different queues.
 
-- Framework preset: None
-- Build command: leave blank
-- Build output directory: `.`
-- Production branch: `main`
+This package intentionally contains **no `wrangler.toml`**. Configure the D1 binding in the Cloudflare dashboard instead.
 
-## Required binding
+## Required Cloudflare settings
 
-In **Workers & Pages → your project → Settings → Bindings**, add:
+In **Workers & Pages → calebsmusic → Settings → Bindings**, add:
 
 - Type: D1 database
 - Variable name: `DB`
-- Database: your `calebs-music-db` database
+- Database: `calebs-music-db`
 
-Add the binding to Production and Preview.
-
-## Required secrets
-
-In **Settings → Variables and Secrets**, add encrypted secrets:
+The secrets must also exist under **Settings → Variables and Secrets**:
 
 - `ADMIN_PASSWORD`
-- `ADMIN_TOKEN_SECRET` (a long random value)
+- `ADMIN_TOKEN_SECRET`
 
-Redeploy after adding or changing bindings/secrets.
+After setting the binding and secrets, make one more GitHub commit to trigger a fresh production deployment.
 
-## Media uploads
+## Verify the backend
 
-This version intentionally does not require R2. Direct image/audio uploads are disabled. Spotify artwork URLs, Spotify playback, streaming links, the weekly schedule, JSON import/export, and shared admin edits continue to work.
+Open:
 
-Spotify custom-button playback updated to use explicit resume/restart controls.
+`https://calebsmusic.pages.dev/api/health`
+
+A working setup returns JSON containing:
+
+- `"ok": true`
+- `"databaseBinding": true`
+- `"databaseReady": true`
+- `"adminPasswordConfigured": true`
+- `"tokenSecretConfigured": true`
+
+Then open:
+
+`https://calebsmusic.pages.dev/api/site-data`
+
+It should return the shared queue as JSON.
+
+## Preserving old browser-only edits
+
+Before replacing the current project, export the latest JSON from whichever browser has the newest queue. After deployment, sign into Admin and import that JSON once. It will then save to D1 and appear on all devices.

@@ -779,7 +779,8 @@
   <script>
     "use strict";
 
-    const STORAGE_KEY = "songOfTheWeekFromScratchV1"; // Kept for automatic migration from the prior build.
+    const STORAGE_KEY = "songOfTheWeekFromScratchV1"; // Legacy browser-only backup, used only for optional migration.
+    const APP_VERSION = "2026-07-30-cloudflare-sync-v3";
     const ADMIN_SESSION_KEY = "calebsMusicAdminTokenV1";
     const SITE_DATA_API = "/api/site-data";
     const ADMIN_LOGIN_API = "/api/admin-login";
@@ -857,7 +858,11 @@
       cloudSaveStatus: $("cloudSaveStatus")
     };
 
-    let data = loadData();
+    // Public rendering begins with the built-in queue, then D1 replaces it.
+    // Browser-local data is deliberately not used as the public source because
+    // that caused Safari and Chrome to show different queues.
+    let legacyLocalData = loadLegacyData();
+    let data = clone(DEFAULT_DATA);
     let adminToken = safeSessionGet(ADMIN_SESSION_KEY) || "";
     let remoteInitialized = false;
     let remoteUpdatedAt = "";
@@ -965,13 +970,28 @@
       return normalized;
     }
 
-    function loadData() {
+    function loadLegacyData() {
       try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        return normalizeData(saved || clone(DEFAULT_DATA));
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? normalizeData(JSON.parse(raw)) : null;
       } catch {
-        return clone(DEFAULT_DATA);
+        return null;
       }
+    }
+
+    function comparableData(value) {
+      const normalized = normalizeData(value);
+      return JSON.stringify({
+        firstSwitchDate: normalized.firstSwitchDate,
+        songs: normalized.songs
+      });
+    }
+
+    function legacyDataDiffersFrom(remoteData) {
+      return Boolean(
+        legacyLocalData &&
+        comparableData(legacyLocalData) !== comparableData(remoteData)
+      );
     }
 
     function setCloudStatus(message, type = "") {
@@ -1063,7 +1083,7 @@
 
     async function fetchSharedData({ force = false } = {}) {
       try {
-        const response = await fetch(`${SITE_DATA_API}?t=${Date.now()}`, {
+        const response = await fetch(`${SITE_DATA_API}?t=${Date.now()}&v=${encodeURIComponent(APP_VERSION)}`, {
           cache: "no-store",
           headers: { "accept": "application/json" }
         });
@@ -1080,8 +1100,13 @@
         }
         return result;
       } catch (error) {
-        console.error(error);
-        if (isAdminOpen()) setCloudStatus("Shared storage is unreachable. Changes are currently only in the local backup.", "error");
+        console.error("Shared Cloudflare data load failed:", error);
+        if (isAdminOpen()) {
+          setCloudStatus(
+            `Shared storage is unreachable (${error.message}). The built-in queue remains visible, but edits will not sync until the DB binding is fixed.`,
+            "error"
+          );
+        }
         return null;
       }
     }
@@ -2544,10 +2569,27 @@
         elements.loginDialog.close();
         const remote = await fetchSharedData({ force: true });
         openAdmin();
+
+        if (remote?.initialized && remote.data && legacyDataDiffersFrom(remote.data)) {
+          const publishLegacy = confirm(
+            "This browser contains local-only queue changes from an older version. " +
+            "Press OK to publish those changes to every device. Press Cancel to keep the shared Cloudflare version."
+          );
+
+          if (publishLegacy) {
+            data = normalizeData(legacyLocalData);
+            renderAdmin();
+            renderPublic(data.selectedIndex);
+            localRevision += 1;
+            await persistRemoteData();
+          }
+          legacyLocalData = null;
+        }
+
         if (!remote?.initialized) {
           setCloudStatus("Creating the shared site data for the first time…");
           saveData({ immediate: true });
-        } else {
+        } else if (!legacyDataDiffersFrom(remote.data)) {
           setCloudStatus("Connected to shared Cloudflare storage.", "success");
         }
       } catch (error) {
@@ -2720,12 +2762,32 @@
 
     window.addEventListener("resize", resizeVisualizer);
 
+    document.documentElement.dataset.appVersion = APP_VERSION;
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(registrations => registrations.forEach(registration => registration.unregister()))
+        .catch(() => {});
+    }
+
     setPlayIcons(false);
     resizeVisualizer();
     renderPublic(publicSongIndex());
     if (!animationFrame) animationFrame = requestAnimationFrame(drawVisualizer);
 
     fetchSharedData({ force: true });
+
+    window.addEventListener("pageshow", event => {
+      if (event.persisted || document.visibilityState === "visible") {
+        fetchSharedData({ force: true });
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && !isAdminOpen()) {
+        fetchSharedData({ force: true });
+      }
+    });
 
     setInterval(async () => {
       if (!isAdminOpen()) {
