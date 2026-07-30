@@ -31,3 +31,5 @@ Redeploy after adding or changing bindings/secrets.
 ## Media uploads
 
 This version intentionally does not require R2. Direct image/audio uploads are disabled. Spotify artwork URLs, Spotify playback, streaming links, the weekly schedule, JSON import/export, and shared admin edits continue to work.
+
+Spotify custom-button playback updated to use explicit resume/restart controls.

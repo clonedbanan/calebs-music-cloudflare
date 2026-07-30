@@ -1246,31 +1246,45 @@
           (spotifyPlayback.duration > 0 &&
             spotifyPlayback.position >= spotifyPlayback.duration - 500);
 
-        // togglePlay() does not consistently restart an Embed once its preview
-        // has reached the end. Explicitly rewind first, then play.
+        // Use Spotify's explicit controls instead of togglePlay(). The Embed
+        // can report a stale paused state, which makes togglePlay unreliable.
         if (nearEnd) {
           spotifyPlayback.hasEnded = false;
           spotifyPlayback.position = 0;
           spotifyPlayback.isPaused = false;
           spotifyPlayback.isBuffering = true;
           setPlayIcons(true);
-          spotifyController.seek(0);
-          spotifyController.play();
+          if (typeof spotifyController.restart === "function") {
+            spotifyController.restart();
+          } else {
+            spotifyController.seek(0);
+            if (typeof spotifyController.resume === "function") {
+              spotifyController.resume();
+            } else {
+              spotifyController.play();
+            }
+          }
           return true;
         }
 
         if (!spotifyPlayback.isPaused && !spotifyPlayback.isBuffering) {
           spotifyController.pause();
+        } else if (typeof spotifyController.resume === "function") {
+          spotifyController.resume();
+        } else if (typeof spotifyController.play === "function") {
+          spotifyController.play();
         } else {
-          // This preserves the button behavior that was reliable before the
-          // end-state patch while still allowing the explicit restart above.
           spotifyController.togglePlay();
         }
         return true;
       } catch (error) {
         console.error(error);
         try {
-          spotifyController.togglePlay();
+          if (typeof spotifyController.play === "function") {
+            spotifyController.play();
+          } else {
+            spotifyController.togglePlay();
+          }
           return true;
         } catch (fallbackError) {
           console.error(fallbackError);
