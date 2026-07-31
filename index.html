@@ -41,35 +41,39 @@
     button { cursor: pointer; }
     a { color: inherit; }
 
-    .video-background {
+    .background-video {
       position: fixed;
       inset: 0;
-      z-index: -3;
+      z-index: -4;
       width: 100%;
       height: 100%;
-      border: 0;
       object-fit: cover;
       opacity: 0;
-      filter: brightness(0.76) saturate(1.08);
-      transform: scale(1.015);
-      transition: opacity 500ms ease;
+      filter: brightness(0.62) saturate(1.08);
+      transform: scale(1.01);
+      transition: opacity 450ms ease;
       pointer-events: none;
+    }
+
+    .background-video.active {
+      opacity: 1;
     }
 
     .blur-background {
       position: fixed;
       inset: -70px;
-      z-index: -4;
+      z-index: -3;
       background-position: center;
       background-size: cover;
       filter: blur(46px) saturate(1.18);
       transform: scale(1.14);
       opacity: 1;
-      transition: background-image 500ms ease, opacity 500ms ease;
+      transition: background-image 500ms ease, opacity 450ms ease;
     }
 
-    body.video-background-active .video-background { opacity: 1; }
-    body.video-background-active .blur-background { opacity: 0; }
+    .blur-background.video-active {
+      opacity: 0.32;
+    }
 
     .background-shade {
       position: fixed;
@@ -553,9 +557,43 @@
       gap: 8px;
     }
 
+    .queue-heading-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .queue-heading-row .section-title {
+      margin: 0;
+    }
+
+    .queue-count {
+      color: var(--faint);
+      font-size: 0.72rem;
+      font-weight: 760;
+      text-align: right;
+    }
+
     .queue {
       display: grid;
       gap: 8px;
+    }
+
+    .queue-empty {
+      margin: 0;
+      padding: 13px;
+      border: 1px dashed rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      color: var(--faint);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .queue-empty[hidden] {
+      display: none;
     }
 
     .queue-item {
@@ -574,6 +612,20 @@
       background: rgba(255, 255, 255, 0.09);
     }
 
+    .queue-item.current {
+      border-color: color-mix(in srgb, var(--accent-1) 52%, rgba(255,255,255,.18));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-1) 18%, transparent);
+    }
+
+    .queue-item.archived {
+      opacity: 0.72;
+      background: rgba(255, 255, 255, 0.022);
+    }
+
+    .queue-item.archived:hover {
+      opacity: 0.94;
+    }
+
     .queue-thumb {
       width: 46px;
       height: 46px;
@@ -584,50 +636,6 @@
 
     .queue-main { min-width: 0; cursor: pointer; }
     .queue-title, .queue-artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .queue-title { font-size: 0.88rem; font-weight: 820; }
-    .queue-artist { margin-top: 2px; color: var(--muted); font-size: 0.76rem; }
-
-    .queue-actions { display: grid; grid-template-columns: repeat(2, 30px); gap: 4px; }
-
-    .queue-item.live {
-      border-color: color-mix(in srgb, var(--accent-1) 58%, rgba(255, 255, 255, 0.18));
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-1) 18%, transparent);
-    }
-
-    .queue-item.archived {
-      opacity: 0.8;
-      background: rgba(255, 255, 255, 0.022);
-    }
-
-    .queue-heading-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin: 12px 0 8px;
-    }
-
-    .queue-heading-row:first-child { margin-top: 0; }
-
-    .queue-heading {
-      margin: 0;
-      color: rgba(255, 255, 255, 0.82);
-      font-size: 0.76rem;
-      font-weight: 820;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .queue-count {
-      min-width: 24px;
-      padding: 3px 7px;
-      border: 1px solid rgba(255, 255, 255, 0.11);
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 0.7rem;
-      text-align: center;
-    }
-
     .queue-title-line {
       display: flex;
       align-items: center;
@@ -635,74 +643,40 @@
       min-width: 0;
     }
 
-    .queue-title-line .queue-title { flex: 1; }
+    .queue-title { min-width: 0; font-size: 0.88rem; font-weight: 820; }
+    .queue-artist { margin-top: 2px; color: var(--muted); font-size: 0.76rem; }
 
     .queue-badge {
       flex: 0 0 auto;
-      padding: 2px 6px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 3px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 999px;
-      color: var(--muted);
-      font-size: 0.61rem;
-      font-weight: 850;
-      letter-spacing: 0.06em;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 0.57rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
     .queue-badge.live {
-      border-color: color-mix(in srgb, var(--accent-1) 48%, transparent);
+      border-color: color-mix(in srgb, var(--accent-1) 50%, rgba(255,255,255,.12));
       color: #fff;
-      background: color-mix(in srgb, var(--accent-1) 18%, transparent);
     }
 
-    .queue-date {
-      margin-top: 3px;
-      color: var(--faint);
+    .queue-actions { display: grid; grid-template-columns: repeat(2, 30px); gap: 4px; }
+    .queue-actions.archive-actions { grid-template-columns: auto; }
+
+    .queue-again {
+      min-height: 30px;
+      padding: 5px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
       font-size: 0.68rem;
-    }
-
-    .archive-details {
-      margin-top: 14px;
-      border-top: 1px solid rgba(255, 255, 255, 0.09);
-      padding-top: 12px;
-    }
-
-    .archive-details summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      cursor: pointer;
-      color: rgba(255, 255, 255, 0.82);
-      font-size: 0.8rem;
-      font-weight: 780;
-      list-style: none;
-      user-select: none;
-    }
-
-    .archive-details summary::-webkit-details-marker { display: none; }
-
-    .archive-details summary::after {
-      content: "+";
-      color: var(--muted);
-      font-size: 1.1rem;
-      font-weight: 500;
-    }
-
-    .archive-details[open] summary::after { content: "−"; }
-    .archive-details .queue { margin-top: 10px; }
-
-    .queue-empty {
-      margin: 8px 0 0;
-      color: var(--faint);
-      font-size: 0.74rem;
-      line-height: 1.45;
-    }
-
-    .icon-button:disabled,
-    .button:disabled {
-      cursor: not-allowed;
-      opacity: 0.34;
+      font-weight: 760;
+      white-space: nowrap;
     }
 
     .icon-button {
@@ -712,6 +686,12 @@
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.06);
       color: #fff;
+    }
+
+    .icon-button:disabled,
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.34;
     }
 
     .admin-note, .status-line {
@@ -749,7 +729,7 @@
   </style>
 </head>
 <body>
-  <video class="video-background" id="videoBackground" muted loop playsinline autoplay preload="metadata" aria-hidden="true"></video>
+  <video class="background-video" id="backgroundVideo" muted loop playsinline preload="metadata" aria-hidden="true"></video>
   <div class="blur-background" id="blurBackground" aria-hidden="true"></div>
   <div class="background-shade" aria-hidden="true"></div>
 
@@ -831,28 +811,25 @@
     </section>
 
     <section class="section">
-      <h3 class="section-title">Live, queue & archive</h3>
-      <div class="button-grid" style="margin-bottom:10px">
-        <button class="button primary" id="addSong" type="button">Add to queue</button>
-        <button class="button" id="duplicateSong" type="button">Feature selected again</button>
-      </div>
-
       <div class="queue-heading-row">
-        <h4 class="queue-heading">Live & queued</h4>
-        <span class="queue-count" id="activeQueueCount">0</span>
+        <h3 class="section-title">Live &amp; queued</h3>
+        <span class="queue-count" id="activeQueueCount"></span>
+      </div>
+      <div class="button-grid" style="margin-bottom:10px">
+        <button class="button primary" id="addSong" type="button">Add song</button>
+        <button class="button" id="duplicateSong" type="button">Duplicate selected</button>
       </div>
       <div class="queue" id="songQueue"></div>
-      <p class="queue-empty" id="queueEmpty" hidden>No future songs are queued. Add a song to continue the schedule.</p>
+    </section>
 
-      <details class="archive-details" id="archiveDetails">
-        <summary>
-          <span>Previously featured</span>
-          <span class="queue-count" id="archiveCount">0</span>
-        </summary>
-        <p class="admin-note">Past songs stay available here for editing or re-adding to the end of the queue.</p>
-        <div class="queue" id="songArchive"></div>
-        <p class="queue-empty" id="archiveEmpty">No songs have moved into the archive yet.</p>
-      </details>
+    <section class="section">
+      <div class="queue-heading-row">
+        <h3 class="section-title">Previously featured</h3>
+        <span class="queue-count" id="usedSongsCount"></span>
+      </div>
+      <p class="admin-note" style="margin:0 0 10px">Songs move here automatically after the next Sunday selection becomes live. They will not cycle back into the active queue.</p>
+      <div class="queue" id="usedSongsList"></div>
+      <p class="queue-empty" id="emptyUsedSongs">No songs have finished their featured week yet.</p>
     </section>
 
     <section class="section">
@@ -896,10 +873,9 @@
       </div>
 
       <div class="field">
-        <label for="backgroundVideoInput">Optional background video</label>
-        <input id="backgroundVideoInput" type="text" placeholder="Direct .mp4/.webm URL or /media/background.mp4" />
-        <button class="button" id="clearBackgroundVideo" type="button" style="width:100%;margin-top:8px">Use blurred album art instead</button>
-        <p class="admin-note">Spotify does not expose Canvas videos through its public API, so this field is manual. Paste a direct video you have permission to host; if it cannot load or autoplay, the page falls back to the blurred album artwork.</p>
+        <label for="backgroundVideoInput">Optional looping background video URL</label>
+        <input id="backgroundVideoInput" type="url" placeholder="https://example.com/background-loop.mp4" />
+        <p class="admin-note">Use a direct MP4 or WebM URL that you are allowed to host. The blurred album artwork remains the fallback.</p>
       </div>
 
       <div class="field">
@@ -927,9 +903,11 @@
       <div class="button-grid">
         <button class="button" id="exportData" type="button">Export JSON</button>
         <button class="button" id="importData" type="button">Import JSON</button>
+        <button class="button" id="fillMissingLinks" type="button">Fill Apple + YouTube links</button>
         <button class="button danger" id="resetData" type="button">Reset site</button>
       </div>
       <input id="dataFile" type="file" accept="application/json,.json" hidden />
+      <p class="status-line" id="linkFillStatus"></p>
       <p class="status-line" id="cloudSaveStatus">Connect to Cloudflare to enable live saving.</p>
       <p class="admin-note">Changes save automatically to shared Cloudflare storage after you unlock Admin. Every browser loads the same published queue. Local browser storage is kept only as a migration backup.</p>
     </section>
@@ -938,12 +916,13 @@
   <script>
     "use strict";
 
-    const APP_BUILD = "cloudflare-archive-video-background-2026-07-30";
+    const APP_BUILD = "cloudflare-archive-video-apple-youtube-autofill-2026-07-30";
     const STORAGE_KEY = "songOfTheWeekFromScratchV1"; // Kept for automatic migration from the prior build.
     const ADMIN_SESSION_KEY = "calebsMusicAdminTokenV1";
     const SITE_DATA_API = "/api/site-data";
     const ADMIN_LOGIN_API = "/api/admin-login";
     const MEDIA_API = "/api/media";
+    const LINK_RESOLVER_API = "/api/resolve-links";
     const PACIFIC_TIME_ZONE = "America/Los_Angeles";
     const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -974,7 +953,7 @@
     const $ = id => document.getElementById(id);
 
     const elements = {
-      videoBackground: $("videoBackground"),
+      backgroundVideo: $("backgroundVideo"),
       blurBackground: $("blurBackground"),
       scheduleStatus: $("scheduleStatus"),
       coverStage: $("coverStage"),
@@ -1000,12 +979,10 @@
       firstSwitchDate: $("firstSwitchDate"),
       scheduleAdminNote: $("scheduleAdminNote"),
       songQueue: $("songQueue"),
-      songArchive: $("songArchive"),
-      archiveDetails: $("archiveDetails"),
       activeQueueCount: $("activeQueueCount"),
-      archiveCount: $("archiveCount"),
-      queueEmpty: $("queueEmpty"),
-      archiveEmpty: $("archiveEmpty"),
+      usedSongsList: $("usedSongsList"),
+      usedSongsCount: $("usedSongsCount"),
+      emptyUsedSongs: $("emptyUsedSongs"),
       spotifyInput: $("spotifyInput"),
       spotifyStatus: $("spotifyStatus"),
       titleInput: $("titleInput"),
@@ -1021,7 +998,12 @@
       appleMusicInput: $("appleMusicInput"),
       youtubeMusicInput: $("youtubeMusicInput"),
       amazonMusicInput: $("amazonMusicInput"),
+      duplicateSongButton: $("duplicateSong"),
+      moveUpButton: $("moveUp"),
+      moveDownButton: $("moveDown"),
+      deleteSongButton: $("deleteSong"),
       dataFile: $("dataFile"),
+      linkFillStatus: $("linkFillStatus"),
       cloudSaveStatus: $("cloudSaveStatus")
     };
 
@@ -1035,7 +1017,6 @@
     let localRevision = 0;
     let lastSavedRevision = 0;
     let displayedIndex = 0;
-    let backgroundVideoGeneration = 0;
     let audioContext = null;
     let analyser = null;
     let mediaSource = null;
@@ -1100,7 +1081,7 @@
         artist: song.artist || "Unknown Artist",
         description: song.description || "",
         albumArt: song.albumArt || "",
-        backgroundVideo: song.backgroundVideo || song.canvasVideo || "",
+        backgroundVideo: song.backgroundVideo || "",
         previewUrl: song.previewUrl || "",
         previewSource: song.previewSource || "",
         previewStoreUrl: song.previewStoreUrl || "",
@@ -1290,27 +1271,41 @@
       return Date.UTC(year, month - 1, day);
     }
 
+    function nextPacificSundaySerial() {
+      const today = getPacificDateSerial();
+      const weekday = new Date(today).getUTCDay();
+      const daysUntilSunday = weekday === 0 ? 7 : 7 - weekday;
+      return today + daysUntilSunday * DAY_MS;
+    }
+
+    function rebaseScheduleForNewQueueItem(stateBeforeAdd) {
+      if (!stateBeforeAdd || stateBeforeAdd.absoluteStep <= stateBeforeAdd.index) return;
+      const nextSunday = nextPacificSundaySerial();
+      const rebasedAnchor = nextSunday - stateBeforeAdd.index * 7 * DAY_MS;
+      data.firstSwitchDate = new Date(rebasedAnchor).toISOString().slice(0, 10);
+    }
+
     function getRotationState() {
       const anchor = dateStringToSerial(data.firstSwitchDate);
       const today = getPacificDateSerial();
       const daysSinceAnchor = Math.floor((today - anchor) / DAY_MS);
       const absoluteStep = daysSinceAnchor < 0 ? 0 : Math.floor(daysSinceAnchor / 7) + 1;
-      const index = data.songs.length
-        ? Math.min(absoluteStep, data.songs.length - 1)
-        : 0;
-      const nextSwitch = daysSinceAnchor < 0
-        ? anchor
-        : anchor + (Math.floor(daysSinceAnchor / 7) + 1) * 7 * DAY_MS;
-      const queuedCount = Math.max(0, data.songs.length - index - 1);
-      const archivedCount = Math.max(0, index);
+      const lastIndex = Math.max(0, data.songs.length - 1);
+      const index = data.songs.length ? Math.min(absoluteStep, lastIndex) : 0;
+      const hasNext = data.songs.length > 0 && index < lastIndex;
+      const nextSwitch = hasNext
+        ? (daysSinceAnchor < 0
+            ? anchor
+            : anchor + (Math.floor(daysSinceAnchor / 7) + 1) * 7 * DAY_MS)
+        : null;
       return {
         anchor,
         absoluteStep,
         index,
         nextSwitch,
-        queuedCount,
-        archivedCount,
-        queueExhausted: queuedCount === 0
+        hasNext,
+        usedCount: index,
+        queuedCount: Math.max(0, data.songs.length - index - 1)
       };
     }
 
@@ -1332,26 +1327,15 @@
       return getRotationState().index;
     }
 
-    function songStartSerial(index) {
-      const anchor = dateStringToSerial(data.firstSwitchDate);
-      if (index <= 0) return anchor - 7 * DAY_MS;
-      return anchor + (index - 1) * 7 * DAY_MS;
-    }
-
-    function formatQueueDate(index) {
-      if (index === 0) return `Featured before ${formatScheduleDate(dateStringToSerial(data.firstSwitchDate))}`;
-      return `Featured ${formatScheduleDate(songStartSerial(index))}`;
-    }
-
     function updateScheduleText() {
       const state = getRotationState();
-      const current = data.songs[state.index];
-      if (state.queuedCount > 0) {
+      const currentSong = data.songs[state.index];
+      if (state.hasNext) {
         elements.scheduleStatus.textContent = `Next song: ${formatScheduleDate(state.nextSwitch)} at 12:00 a.m. PT`;
-        elements.scheduleAdminNote.textContent = `${current?.title || "The current song"} is live. ${state.queuedCount} song${state.queuedCount === 1 ? " is" : "s are"} queued, and ${state.archivedCount} ${state.archivedCount === 1 ? "song is" : "songs are"} in the archive.`;
+        elements.scheduleAdminNote.textContent = `“${currentSong?.title || "Current song"}” is live. ${state.queuedCount} song${state.queuedCount === 1 ? " is" : "s are"} queued, and ${state.usedCount} song${state.usedCount === 1 ? " has" : "s have"} already been featured.`;
       } else {
-        elements.scheduleStatus.textContent = "Last queued song is live";
-        elements.scheduleAdminNote.textContent = `${current?.title || "The current song"} remains live because the future queue is empty. Add a song to schedule the next selection.`;
+        elements.scheduleStatus.textContent = "No next song queued";
+        elements.scheduleAdminNote.textContent = `“${currentSong?.title || "Current song"}” stays live until another song is added to the queue. ${state.usedCount} song${state.usedCount === 1 ? " has" : "s have"} already been featured.`;
       }
     }
 
@@ -1545,45 +1529,48 @@
     }
 
     function renderBackgroundMedia(song) {
-      const generation = ++backgroundVideoGeneration;
-      const videoUrl = String(song.backgroundVideo || "").trim();
+      const videoUrl = String(song?.backgroundVideo || "").trim();
+      const video = elements.backgroundVideo;
 
       elements.blurBackground.style.backgroundImage = song.albumArt
         ? `url("${String(song.albumArt).replaceAll('"', '\\"')}")`
         : "linear-gradient(135deg, #2a2a32, #09090d)";
 
-      document.body.classList.remove("video-background-active");
-      elements.videoBackground.pause();
-      elements.videoBackground.removeAttribute("src");
-      elements.videoBackground.poster = song.albumArt || "";
-      elements.videoBackground.load();
+      if (!videoUrl) {
+        video.pause();
+        video.removeAttribute("src");
+        video.dataset.source = "";
+        video.classList.remove("active");
+        video.hidden = true;
+        video.load();
+        elements.blurBackground.classList.remove("video-active");
+        return;
+      }
 
-      if (!videoUrl) return;
+      if (video.dataset.source !== videoUrl) {
+        video.pause();
+        video.classList.remove("active");
+        video.src = videoUrl;
+        video.dataset.source = videoUrl;
+        video.load();
+      }
 
-      const activateVideo = () => {
-        if (generation !== backgroundVideoGeneration) return;
-        document.body.classList.add("video-background-active");
-      };
-
-      const fallBack = () => {
-        if (generation !== backgroundVideoGeneration) return;
-        document.body.classList.remove("video-background-active");
-        elements.videoBackground.pause();
-        elements.videoBackground.removeAttribute("src");
-        elements.videoBackground.load();
-      };
-
-      elements.videoBackground.onplaying = activateVideo;
-      elements.videoBackground.onerror = fallBack;
-      elements.videoBackground.src = videoUrl;
-      elements.videoBackground.muted = true;
-      elements.videoBackground.loop = true;
-      elements.videoBackground.playsInline = true;
-      elements.videoBackground.load();
-
-      const playRequest = elements.videoBackground.play();
-      if (playRequest && typeof playRequest.then === "function") {
-        playRequest.then(activateVideo).catch(fallBack);
+      video.hidden = false;
+      video.muted = true;
+      video.defaultMuted = true;
+      elements.blurBackground.classList.add("video-active");
+      const requestedSource = videoUrl;
+      const playRequest = video.play();
+      if (playRequest && typeof playRequest.catch === "function") {
+        playRequest.then(() => {
+          if (video.dataset.source === requestedSource) video.classList.add("active");
+        }).catch(() => {
+          if (video.dataset.source !== requestedSource) return;
+          video.classList.remove("active");
+          elements.blurBackground.classList.remove("video-active");
+        });
+      } else if (video.dataset.source === requestedSource) {
+        video.classList.add("active");
       }
     }
 
@@ -1607,7 +1594,15 @@
       extractPalette(song.albumArt, song);
       renderLinks(song);
       loadPlaybackForSong(song);
-      updateScheduleText();
+
+      const liveIndex = publicSongIndex();
+      if (isAdminOpen() && index !== liveIndex) {
+        elements.scheduleStatus.textContent = index < liveIndex
+          ? "Admin preview • previously featured"
+          : "Admin preview • queued";
+      } else {
+        updateScheduleText();
+      }
     }
 
     function renderLinks(song) {
@@ -2265,10 +2260,11 @@
       animationFrame = requestAnimationFrame(drawVisualizer);
     }
 
-    function createQueueRow(song, index, mode, state) {
+    function buildQueueRow(song, index, state) {
+      const archived = index < state.index;
+      const isCurrent = index === state.index;
       const row = document.createElement("div");
-      const isLive = index === state.index;
-      row.className = `queue-item${index === data.selectedIndex ? " active" : ""}${isLive ? " live" : ""}${mode === "archive" ? " archived" : ""}`;
+      row.className = `queue-item${index === data.selectedIndex ? " active" : ""}${archived ? " archived" : ""}${isCurrent ? " current" : ""}`;
 
       const image = document.createElement("img");
       image.className = "queue-thumb";
@@ -2278,54 +2274,47 @@
 
       const main = document.createElement("div");
       main.className = "queue-main";
-      const badge = isLive
+      const badge = isCurrent
         ? '<span class="queue-badge live">Live</span>'
-        : mode === "archive"
-          ? '<span class="queue-badge">Past</span>'
-          : '<span class="queue-badge">Queued</span>';
-      const dateText = isLive
-        ? `Live now • started ${formatScheduleDate(songStartSerial(index))}`
-        : mode === "archive"
-          ? formatQueueDate(index)
-          : `Scheduled ${formatScheduleDate(songStartSerial(index))}`;
-      main.innerHTML = `
-        <div class="queue-title-line">
-          <div class="queue-title">${escapeHtml(song.title)}</div>
-          ${badge}
-        </div>
-        <div class="queue-artist">${escapeHtml(song.artist)}</div>
-        <div class="queue-date">${escapeHtml(dateText)}</div>
-      `;
+        : (archived ? '<span class="queue-badge">Used</span>' : '');
+      main.innerHTML = `<div class="queue-title-line"><div class="queue-title">${escapeHtml(song.title)}</div>${badge}</div><div class="queue-artist">${escapeHtml(song.artist)}</div>`;
       main.addEventListener("click", () => selectEditorSong(index));
 
       const actions = document.createElement("div");
-      actions.className = "queue-actions";
-
-      if (mode === "archive") {
-        const repeat = document.createElement("button");
-        repeat.className = "icon-button";
-        repeat.type = "button";
-        repeat.textContent = "↻";
-        repeat.setAttribute("aria-label", "Add a copy to the end of the queue");
-        repeat.title = "Feature this song again";
-        repeat.addEventListener("click", () => featureSongAgain(index));
-        actions.append(repeat);
-      } else if (!isLive) {
+      if (archived) {
+        actions.className = "queue-actions archive-actions";
+        const queueAgain = document.createElement("button");
+        queueAgain.className = "queue-again";
+        queueAgain.type = "button";
+        queueAgain.textContent = "Queue again";
+        queueAgain.addEventListener("click", event => {
+          event.stopPropagation();
+          queueArchivedSongAgain(index);
+        });
+        actions.append(queueAgain);
+      } else {
+        actions.className = "queue-actions";
         const up = document.createElement("button");
         up.className = "icon-button";
         up.type = "button";
         up.textContent = "↑";
         up.setAttribute("aria-label", "Move up");
-        up.disabled = index <= state.index + 1;
-        up.addEventListener("click", () => moveSong(index, -1));
+        up.disabled = isCurrent || index <= state.index + 1;
+        up.addEventListener("click", event => {
+          event.stopPropagation();
+          moveSong(index, -1);
+        });
 
         const down = document.createElement("button");
         down.className = "icon-button";
         down.type = "button";
         down.textContent = "↓";
         down.setAttribute("aria-label", "Move down");
-        down.disabled = index >= data.songs.length - 1;
-        down.addEventListener("click", () => moveSong(index, 1));
+        down.disabled = isCurrent || index >= data.songs.length - 1;
+        down.addEventListener("click", event => {
+          event.stopPropagation();
+          moveSong(index, 1);
+        });
         actions.append(up, down);
       }
 
@@ -2336,35 +2325,19 @@
     function renderQueue() {
       const state = getRotationState();
       elements.songQueue.innerHTML = "";
-      elements.songArchive.innerHTML = "";
+      elements.usedSongsList.innerHTML = "";
 
-      const activeSongs = data.songs.slice(state.index);
-      const archivedIndices = Array.from({ length: state.index }, (_, index) => index).reverse();
-
-      activeSongs.forEach((song, offset) => {
-        const index = state.index + offset;
-        elements.songQueue.appendChild(createQueueRow(song, index, "active", state));
+      data.songs.forEach((song, index) => {
+        const row = buildQueueRow(song, index, state);
+        if (index < state.index) elements.usedSongsList.appendChild(row);
+        else elements.songQueue.appendChild(row);
       });
 
-      archivedIndices.forEach(index => {
-        elements.songArchive.appendChild(createQueueRow(data.songs[index], index, "archive", state));
-      });
-
-      elements.activeQueueCount.textContent = String(activeSongs.length);
-      elements.archiveCount.textContent = String(archivedIndices.length);
-      elements.queueEmpty.hidden = activeSongs.length > 1;
-      elements.archiveEmpty.hidden = archivedIndices.length > 0;
-    }
-
-    function featureSongAgain(index) {
-      const source = data.songs[index];
-      if (!source) return;
-      const copy = clone(source);
-      data.songs.push(copy);
-      data.selectedIndex = data.songs.length - 1;
-      saveData();
-      renderAdmin();
-      renderPublic(data.selectedIndex);
+      elements.activeQueueCount.textContent = state.hasNext
+        ? `1 live • ${state.queuedCount} queued`
+        : "1 live • queue empty";
+      elements.usedSongsCount.textContent = `${state.usedCount} used`;
+      elements.emptyUsedSongs.hidden = state.usedCount > 0;
     }
 
     function renderEditorFields() {
@@ -2388,22 +2361,22 @@
       elements.previewStatus.textContent = "";
       elements.spotifyStatus.className = "status-line";
       elements.previewStatus.className = "status-line";
-
-      const state = getRotationState();
-      const selectedIsFuture = data.selectedIndex > state.index;
-      $("moveUp").disabled = !selectedIsFuture || data.selectedIndex <= state.index + 1;
-      $("moveDown").disabled = !selectedIsFuture || data.selectedIndex >= data.songs.length - 1;
-      $("deleteSong").disabled = data.selectedIndex <= state.index;
-      $("deleteSong").title = data.selectedIndex <= state.index
-        ? "Live and previously featured songs are locked to preserve the published schedule."
-        : "Delete selected queued song";
     }
 
     function renderAdmin() {
+      const state = getRotationState();
+      const selectedIsArchived = data.selectedIndex < state.index;
+      const selectedIsCurrent = data.selectedIndex === state.index;
+
       elements.firstSwitchDate.value = data.firstSwitchDate;
       renderQueue();
       renderEditorFields();
       updateScheduleText();
+
+      elements.moveUpButton.disabled = selectedIsArchived || selectedIsCurrent || data.selectedIndex <= state.index + 1;
+      elements.moveDownButton.disabled = selectedIsArchived || selectedIsCurrent || data.selectedIndex >= data.songs.length - 1;
+      elements.deleteSongButton.disabled = selectedIsArchived || (selectedIsCurrent && !state.hasNext);
+      elements.duplicateSongButton.textContent = selectedIsArchived ? "Queue selected again" : "Duplicate selected";
     }
 
     function selectEditorSong(index) {
@@ -2422,6 +2395,18 @@
       saveData();
       renderAdmin();
       renderPublic(target);
+    }
+
+    function queueArchivedSongAgain(index) {
+      const song = data.songs[index];
+      if (!song) return;
+      const stateBeforeAdd = getRotationState();
+      data.songs.push(clone(song));
+      rebaseScheduleForNewQueueItem(stateBeforeAdd);
+      data.selectedIndex = data.songs.length - 1;
+      saveData();
+      renderAdmin();
+      renderPublic(data.selectedIndex);
     }
 
     function createBlankSong() {
@@ -2610,6 +2595,28 @@
       );
     }
 
+    async function fetchResolvedServiceLinks(spotifyUrl, title, artist, country) {
+      if (!adminToken) throw new Error("Unlock Admin before resolving service links.");
+
+      const response = await fetch(LINK_RESOLVER_API, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "authorization": `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({ spotifyUrl, title, artist, country })
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        adminToken = "";
+        safeSessionRemove(ADMIN_SESSION_KEY);
+        throw new Error("Admin session expired. Unlock Admin again.");
+      }
+      if (!response.ok) throw new Error(result.error || `Link resolver failed (${response.status})`);
+      return result;
+    }
+
     async function fetchOdesli(spotifyUrl, country) {
       const endpoint = new URL("https://api.song.link/v1-alpha.1/links");
       endpoint.searchParams.set("url", spotifyUrl);
@@ -2730,6 +2737,33 @@
       return count;
     }
 
+    function applyResolvedServiceLinks(song, result, { onlyMissing = false } = {}) {
+      const links = result?.links || {};
+      const supported = ["spotify", "appleMusic", "youtubeMusic", "amazonMusic"];
+      const applied = [];
+
+      for (const service of supported) {
+        const value = String(links[service] || "").trim();
+        if (!value) continue;
+        if (onlyMissing && song.links[service]) continue;
+        song.links[service] = value;
+        applied.push(service);
+      }
+
+      const metadata = result?.metadata || {};
+      if (metadata.title && (!song.title || song.title === "Untitled Song")) song.title = metadata.title;
+      if (metadata.artist && (!song.artist || /^(unknown artist|artist name|enter artist manually)$/i.test(song.artist))) {
+        song.artist = metadata.artist;
+      }
+      if (metadata.thumbnail && !song.albumArt) song.albumArt = metadata.thumbnail;
+
+      return applied;
+    }
+
+    function displayServiceList(services) {
+      return services.map(service => SERVICE_NAMES[service] || service).join(", ");
+    }
+
     async function importSpotifyForSelected() {
       const song = currentEditorSong();
       const raw = elements.spotifyInput.value.trim();
@@ -2836,6 +2870,25 @@
           if (directLinkCount) imported.push(`${directLinkCount} direct listening links`);
         }
 
+        try {
+          const enhanced = await fetchResolvedServiceLinks(
+            normalized,
+            song.title,
+            song.artist,
+            country
+          );
+          const applied = applyResolvedServiceLinks(song, enhanced);
+          if (applied.includes("appleMusic")) imported.push("Apple Music link");
+          if (applied.includes("youtubeMusic")) imported.push("YouTube Music link");
+          if (applied.includes("amazonMusic")) imported.push("Amazon Music link");
+          if (enhanced?.metadata?.artist && /^(artist name|unknown artist|artist unavailable|enter artist manually)$/i.test(song.artist.trim())) {
+            song.artist = enhanced.metadata.artist;
+            imported.push("artist");
+          }
+        } catch (resolverError) {
+          console.warn("Enhanced service-link lookup failed; keeping the links returned by the regular importer.", resolverError);
+        }
+
         if (!song.artist || /^(artist name|unknown artist|artist unavailable)$/i.test(song.artist.trim())) {
           song.artist = "Enter artist manually";
         }
@@ -2858,6 +2911,75 @@
         elements.spotifyStatus.className = "status-line error";
       } finally {
         $("importSpotify").disabled = false;
+      }
+    }
+
+    async function fillMissingAppleAndYouTubeLinks() {
+      if (!adminToken) {
+        elements.linkFillStatus.textContent = "Unlock Admin first.";
+        elements.linkFillStatus.className = "status-line error";
+        return;
+      }
+
+      const candidates = data.songs
+        .map((song, index) => ({ song, index }))
+        .filter(({ song }) => song.links.spotify && (!song.links.appleMusic || !song.links.youtubeMusic));
+
+      if (!candidates.length) {
+        elements.linkFillStatus.textContent = "Every Spotify song already has Apple Music and YouTube Music links.";
+        elements.linkFillStatus.className = "status-line success";
+        return;
+      }
+
+      const button = $("fillMissingLinks");
+      button.disabled = true;
+      let appleCount = 0;
+      let youtubeCount = 0;
+      let changedSongs = 0;
+
+      try {
+        for (let position = 0; position < candidates.length; position += 1) {
+          const { song } = candidates[position];
+          elements.linkFillStatus.textContent =
+            `Checking ${position + 1} of ${candidates.length}: ${song.title} — ${song.artist}`;
+          elements.linkFillStatus.className = "status-line";
+
+          try {
+            const result = await fetchResolvedServiceLinks(
+              song.links.spotify,
+              song.title,
+              song.artist,
+              preferredCountry()
+            );
+            const beforeApple = song.links.appleMusic;
+            const beforeYouTube = song.links.youtubeMusic;
+            applyResolvedServiceLinks(song, result, { onlyMissing: true });
+
+            if (!beforeApple && song.links.appleMusic) appleCount += 1;
+            if (!beforeYouTube && song.links.youtubeMusic) youtubeCount += 1;
+            if (beforeApple !== song.links.appleMusic || beforeYouTube !== song.links.youtubeMusic) {
+              changedSongs += 1;
+            }
+          } catch (error) {
+            console.warn(`Could not resolve links for ${song.title}`, error);
+          }
+
+          // Avoid hammering the external catalogs during a full-queue backfill.
+          await new Promise(resolve => setTimeout(resolve, 180));
+        }
+
+        if (changedSongs) {
+          saveData({ immediate: true });
+          renderAdmin();
+          if (!isAdminOpen()) renderPublic(publicSongIndex());
+        }
+
+        elements.linkFillStatus.textContent = changedSongs
+          ? `Filled ${appleCount} Apple Music link${appleCount === 1 ? "" : "s"} and ${youtubeCount} YouTube Music link${youtubeCount === 1 ? "" : "s"} across ${changedSongs} song${changedSongs === 1 ? "" : "s"}.`
+          : "No additional high-confidence direct links were found. Existing links were left unchanged.";
+        elements.linkFillStatus.className = `status-line ${changedSongs ? "success" : ""}`.trim();
+      } finally {
+        button.disabled = false;
       }
     }
 
@@ -2893,6 +3015,11 @@
     }
 
     elements.coverPlayButton.addEventListener("click", togglePlayback);
+
+    elements.backgroundVideo.addEventListener("error", () => {
+      elements.backgroundVideo.classList.remove("active");
+      elements.blurBackground.classList.remove("video-active");
+    });
 
     elements.audioPlayer.addEventListener("play", () => {
       setPlayIcons(true);
@@ -2977,7 +3104,9 @@
     });
 
     $("addSong").addEventListener("click", () => {
+      const stateBeforeAdd = getRotationState();
       data.songs.push(createBlankSong());
+      rebaseScheduleForNewQueueItem(stateBeforeAdd);
       data.selectedIndex = data.songs.length - 1;
       saveData();
       renderAdmin();
@@ -2985,9 +3114,17 @@
     });
 
     $("duplicateSong").addEventListener("click", () => {
+      const state = getRotationState();
       const copy = clone(currentEditorSong());
-      data.songs.push(copy);
-      data.selectedIndex = data.songs.length - 1;
+      if (data.selectedIndex < state.index) {
+        data.songs.push(copy);
+        rebaseScheduleForNewQueueItem(state);
+        data.selectedIndex = data.songs.length - 1;
+      } else {
+        copy.title = `${copy.title} Copy`;
+        data.songs.splice(data.selectedIndex + 1, 0, copy);
+        data.selectedIndex += 1;
+      }
       saveData();
       renderAdmin();
       renderPublic(data.selectedIndex);
@@ -2995,11 +3132,19 @@
 
     $("deleteSong").addEventListener("click", () => {
       const state = getRotationState();
-      if (data.selectedIndex <= state.index) {
-        alert("The live song and archive are locked so the published schedule and history remain intact. Use ‘Feature selected again’ to add a past song back to the queue.");
+      if (data.selectedIndex < state.index) {
+        alert("Previously featured songs stay in the archive. Use Queue selected again to place a copy at the end of the active queue.");
         return;
       }
-      if (!confirm(`Delete \"${currentEditorSong().title}\" from the future queue?`)) return;
+      if (data.selectedIndex === state.index && !state.hasNext) {
+        alert("Add another queued song before deleting the only live song.");
+        return;
+      }
+      if (data.songs.length <= 1) {
+        alert("The site needs at least one song.");
+        return;
+      }
+      if (!confirm(`Delete \"${currentEditorSong().title}\"?`)) return;
       data.songs.splice(data.selectedIndex, 1);
       data.selectedIndex = Math.min(data.selectedIndex, data.songs.length - 1);
       saveData();
@@ -3010,6 +3155,7 @@
     $("moveUp").addEventListener("click", () => moveSong(data.selectedIndex, -1));
     $("moveDown").addEventListener("click", () => moveSong(data.selectedIndex, 1));
     $("importSpotify").addEventListener("click", importSpotifyForSelected);
+    $("fillMissingLinks").addEventListener("click", fillMissingAppleAndYouTubeLinks);
 
     elements.spotifyInput.addEventListener("input", () => {
       currentEditorSong().links.spotify = elements.spotifyInput.value;
@@ -3021,13 +3167,7 @@
     bindSongInput(elements.artistInput, (song, value) => { song.artist = value || "Unknown Artist"; });
     bindSongInput(elements.descriptionInput, (song, value) => { song.description = value; });
     bindSongInput(elements.artworkInput, (song, value) => { song.albumArt = value; });
-    bindSongInput(elements.backgroundVideoInput, (song, value) => { song.backgroundVideo = value; });
-    $("clearBackgroundVideo").addEventListener("click", () => {
-      currentEditorSong().backgroundVideo = "";
-      elements.backgroundVideoInput.value = "";
-      saveData();
-      renderPublic(data.selectedIndex);
-    });
+    bindSongInput(elements.backgroundVideoInput, (song, value) => { song.backgroundVideo = value.trim(); });
     bindSongInput(elements.previewInput, (song, value) => {
       song.previewUrl = value;
       song.previewSource = value ? "Custom in-page preview" : "";

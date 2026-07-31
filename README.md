@@ -1,47 +1,15 @@
-# Caleb's Music of the Week — Cloudflare sync repair
+# Apple Music + YouTube Music autofill update
 
-This build fixes two related problems:
+Upload these two files to the matching locations in the existing Cloudflare Pages repository:
 
-1. The repository's `wrangler.toml` declared itself as the source of truth but did not contain the D1 binding, so `/api/site-data` could not reach the database.
-2. The public page previously started from each browser's `localStorage`, allowing Safari and Chrome to show different queues.
+- `index.html` -> repository root
+- `functions/api/resolve-links.js` -> `functions/api/resolve-links.js`
 
-This package intentionally contains **no `wrangler.toml`**. Configure the D1 binding in the Cloudflare dashboard instead.
+Do not remove or replace the existing D1 functions, `wrangler.toml`, bindings, or Cloudflare secrets.
 
-## Required Cloudflare settings
+After Cloudflare deploys, open Admin and either:
 
-In **Workers & Pages → calebsmusic → Settings → Bindings**, add:
+1. Import a new Spotify track normally. Apple Music and YouTube Music are now resolved automatically.
+2. Click **Fill Apple + YouTube links** in the Data section to backfill missing links for the existing queue and archive.
 
-- Type: D1 database
-- Variable name: `DB`
-- Database: `calebs-music-db`
-
-The secrets must also exist under **Settings → Variables and Secrets**:
-
-- `ADMIN_PASSWORD`
-- `ADMIN_TOKEN_SECRET`
-
-After setting the binding and secrets, make one more GitHub commit to trigger a fresh production deployment.
-
-## Verify the backend
-
-Open:
-
-`https://calebsmusic.pages.dev/api/health`
-
-A working setup returns JSON containing:
-
-- `"ok": true`
-- `"databaseBinding": true`
-- `"databaseReady": true`
-- `"adminPasswordConfigured": true`
-- `"tokenSecretConfigured": true`
-
-Then open:
-
-`https://calebsmusic.pages.dev/api/site-data`
-
-It should return the shared queue as JSON.
-
-## Preserving old browser-only edits
-
-Before replacing the current project, export the latest JSON from whichever browser has the newest queue. After deployment, sign into Admin and import that JSON once. It will then save to D1 and appear on all devices.
+The resolver uses exact Songlink/Odesli mappings first. Apple Music then uses a high-confidence Apple catalog match. YouTube Music then attempts a high-confidence direct video match. It leaves a service blank rather than intentionally inserting a generic search-results URL when no confident direct match is available.
