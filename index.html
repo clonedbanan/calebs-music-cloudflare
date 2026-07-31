@@ -41,16 +41,35 @@
     button { cursor: pointer; }
     a { color: inherit; }
 
+    .video-background {
+      position: fixed;
+      inset: 0;
+      z-index: -3;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      object-fit: cover;
+      opacity: 0;
+      filter: brightness(0.76) saturate(1.08);
+      transform: scale(1.015);
+      transition: opacity 500ms ease;
+      pointer-events: none;
+    }
+
     .blur-background {
       position: fixed;
       inset: -70px;
-      z-index: -3;
+      z-index: -4;
       background-position: center;
       background-size: cover;
       filter: blur(46px) saturate(1.18);
       transform: scale(1.14);
-      transition: background-image 500ms ease;
+      opacity: 1;
+      transition: background-image 500ms ease, opacity 500ms ease;
     }
+
+    body.video-background-active .video-background { opacity: 1; }
+    body.video-background-active .blur-background { opacity: 0; }
 
     .background-shade {
       position: fixed;
@@ -570,6 +589,122 @@
 
     .queue-actions { display: grid; grid-template-columns: repeat(2, 30px); gap: 4px; }
 
+    .queue-item.live {
+      border-color: color-mix(in srgb, var(--accent-1) 58%, rgba(255, 255, 255, 0.18));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-1) 18%, transparent);
+    }
+
+    .queue-item.archived {
+      opacity: 0.8;
+      background: rgba(255, 255, 255, 0.022);
+    }
+
+    .queue-heading-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 12px 0 8px;
+    }
+
+    .queue-heading-row:first-child { margin-top: 0; }
+
+    .queue-heading {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.76rem;
+      font-weight: 820;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .queue-count {
+      min-width: 24px;
+      padding: 3px 7px;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      text-align: center;
+    }
+
+    .queue-title-line {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .queue-title-line .queue-title { flex: 1; }
+
+    .queue-badge {
+      flex: 0 0 auto;
+      padding: 2px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.61rem;
+      font-weight: 850;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .queue-badge.live {
+      border-color: color-mix(in srgb, var(--accent-1) 48%, transparent);
+      color: #fff;
+      background: color-mix(in srgb, var(--accent-1) 18%, transparent);
+    }
+
+    .queue-date {
+      margin-top: 3px;
+      color: var(--faint);
+      font-size: 0.68rem;
+    }
+
+    .archive-details {
+      margin-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.09);
+      padding-top: 12px;
+    }
+
+    .archive-details summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.8rem;
+      font-weight: 780;
+      list-style: none;
+      user-select: none;
+    }
+
+    .archive-details summary::-webkit-details-marker { display: none; }
+
+    .archive-details summary::after {
+      content: "+";
+      color: var(--muted);
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .archive-details[open] summary::after { content: "−"; }
+    .archive-details .queue { margin-top: 10px; }
+
+    .queue-empty {
+      margin: 8px 0 0;
+      color: var(--faint);
+      font-size: 0.74rem;
+      line-height: 1.45;
+    }
+
+    .icon-button:disabled,
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.34;
+    }
+
     .icon-button {
       width: 30px;
       height: 30px;
@@ -614,6 +749,7 @@
   </style>
 </head>
 <body>
+  <video class="video-background" id="videoBackground" muted loop playsinline autoplay preload="metadata" aria-hidden="true"></video>
   <div class="blur-background" id="blurBackground" aria-hidden="true"></div>
   <div class="background-shade" aria-hidden="true"></div>
 
@@ -695,12 +831,28 @@
     </section>
 
     <section class="section">
-      <h3 class="section-title">Queue</h3>
+      <h3 class="section-title">Live, queue & archive</h3>
       <div class="button-grid" style="margin-bottom:10px">
-        <button class="button primary" id="addSong" type="button">Add song</button>
-        <button class="button" id="duplicateSong" type="button">Duplicate selected</button>
+        <button class="button primary" id="addSong" type="button">Add to queue</button>
+        <button class="button" id="duplicateSong" type="button">Feature selected again</button>
+      </div>
+
+      <div class="queue-heading-row">
+        <h4 class="queue-heading">Live & queued</h4>
+        <span class="queue-count" id="activeQueueCount">0</span>
       </div>
       <div class="queue" id="songQueue"></div>
+      <p class="queue-empty" id="queueEmpty" hidden>No future songs are queued. Add a song to continue the schedule.</p>
+
+      <details class="archive-details" id="archiveDetails">
+        <summary>
+          <span>Previously featured</span>
+          <span class="queue-count" id="archiveCount">0</span>
+        </summary>
+        <p class="admin-note">Past songs stay available here for editing or re-adding to the end of the queue.</p>
+        <div class="queue" id="songArchive"></div>
+        <p class="queue-empty" id="archiveEmpty">No songs have moved into the archive yet.</p>
+      </details>
     </section>
 
     <section class="section">
@@ -744,6 +896,13 @@
       </div>
 
       <div class="field">
+        <label for="backgroundVideoInput">Optional background video</label>
+        <input id="backgroundVideoInput" type="text" placeholder="Direct .mp4/.webm URL or /media/background.mp4" />
+        <button class="button" id="clearBackgroundVideo" type="button" style="width:100%;margin-top:8px">Use blurred album art instead</button>
+        <p class="admin-note">Spotify does not expose Canvas videos through its public API, so this field is manual. Paste a direct video you have permission to host; if it cannot load or autoplay, the page falls back to the blurred album artwork.</p>
+      </div>
+
+      <div class="field">
         <label for="previewInput">Optional uploaded audio fallback</label>
         <input id="previewInput" type="text" placeholder="Optional direct audio URL" />
         <button class="button" id="uploadAudio" type="button" style="width:100%;margin-top:8px">Upload audio fallback</button>
@@ -779,7 +938,7 @@
   <script>
     "use strict";
 
-    const APP_BUILD = "cloudflare-button-race-fix-2026-07-30";
+    const APP_BUILD = "cloudflare-archive-video-background-2026-07-30";
     const STORAGE_KEY = "songOfTheWeekFromScratchV1"; // Kept for automatic migration from the prior build.
     const ADMIN_SESSION_KEY = "calebsMusicAdminTokenV1";
     const SITE_DATA_API = "/api/site-data";
@@ -815,6 +974,7 @@
     const $ = id => document.getElementById(id);
 
     const elements = {
+      videoBackground: $("videoBackground"),
       blurBackground: $("blurBackground"),
       scheduleStatus: $("scheduleStatus"),
       coverStage: $("coverStage"),
@@ -840,6 +1000,12 @@
       firstSwitchDate: $("firstSwitchDate"),
       scheduleAdminNote: $("scheduleAdminNote"),
       songQueue: $("songQueue"),
+      songArchive: $("songArchive"),
+      archiveDetails: $("archiveDetails"),
+      activeQueueCount: $("activeQueueCount"),
+      archiveCount: $("archiveCount"),
+      queueEmpty: $("queueEmpty"),
+      archiveEmpty: $("archiveEmpty"),
       spotifyInput: $("spotifyInput"),
       spotifyStatus: $("spotifyStatus"),
       titleInput: $("titleInput"),
@@ -848,6 +1014,7 @@
       descriptionInput: $("descriptionInput"),
       artworkInput: $("artworkInput"),
       artworkFile: $("artworkFile"),
+      backgroundVideoInput: $("backgroundVideoInput"),
       previewInput: $("previewInput"),
       previewStatus: $("previewStatus"),
       audioFile: $("audioFile"),
@@ -868,6 +1035,7 @@
     let localRevision = 0;
     let lastSavedRevision = 0;
     let displayedIndex = 0;
+    let backgroundVideoGeneration = 0;
     let audioContext = null;
     let analyser = null;
     let mediaSource = null;
@@ -932,6 +1100,7 @@
         artist: song.artist || "Unknown Artist",
         description: song.description || "",
         albumArt: song.albumArt || "",
+        backgroundVideo: song.backgroundVideo || song.canvasVideo || "",
         previewUrl: song.previewUrl || "",
         previewSource: song.previewSource || "",
         previewStoreUrl: song.previewStoreUrl || "",
@@ -1126,11 +1295,23 @@
       const today = getPacificDateSerial();
       const daysSinceAnchor = Math.floor((today - anchor) / DAY_MS);
       const absoluteStep = daysSinceAnchor < 0 ? 0 : Math.floor(daysSinceAnchor / 7) + 1;
-      const index = data.songs.length ? modulo(absoluteStep, data.songs.length) : 0;
+      const index = data.songs.length
+        ? Math.min(absoluteStep, data.songs.length - 1)
+        : 0;
       const nextSwitch = daysSinceAnchor < 0
         ? anchor
         : anchor + (Math.floor(daysSinceAnchor / 7) + 1) * 7 * DAY_MS;
-      return { anchor, absoluteStep, index, nextSwitch };
+      const queuedCount = Math.max(0, data.songs.length - index - 1);
+      const archivedCount = Math.max(0, index);
+      return {
+        anchor,
+        absoluteStep,
+        index,
+        nextSwitch,
+        queuedCount,
+        archivedCount,
+        queueExhausted: queuedCount === 0
+      };
     }
 
     function formatScheduleDate(serial) {
@@ -1151,10 +1332,27 @@
       return getRotationState().index;
     }
 
+    function songStartSerial(index) {
+      const anchor = dateStringToSerial(data.firstSwitchDate);
+      if (index <= 0) return anchor - 7 * DAY_MS;
+      return anchor + (index - 1) * 7 * DAY_MS;
+    }
+
+    function formatQueueDate(index) {
+      if (index === 0) return `Featured before ${formatScheduleDate(dateStringToSerial(data.firstSwitchDate))}`;
+      return `Featured ${formatScheduleDate(songStartSerial(index))}`;
+    }
+
     function updateScheduleText() {
       const state = getRotationState();
-      elements.scheduleStatus.textContent = `Next song: ${formatScheduleDate(state.nextSwitch)} at 12:00 a.m. PT`;
-      elements.scheduleAdminNote.textContent = `The public page currently shows queue item ${state.index + 1}. It changes next on ${formatScheduleDate(state.nextSwitch)} at 12:00 a.m. Pacific Time.`;
+      const current = data.songs[state.index];
+      if (state.queuedCount > 0) {
+        elements.scheduleStatus.textContent = `Next song: ${formatScheduleDate(state.nextSwitch)} at 12:00 a.m. PT`;
+        elements.scheduleAdminNote.textContent = `${current?.title || "The current song"} is live. ${state.queuedCount} song${state.queuedCount === 1 ? " is" : "s are"} queued, and ${state.archivedCount} ${state.archivedCount === 1 ? "song is" : "songs are"} in the archive.`;
+      } else {
+        elements.scheduleStatus.textContent = "Last queued song is live";
+        elements.scheduleAdminNote.textContent = `${current?.title || "The current song"} remains live because the future queue is empty. Add a song to schedule the next selection.`;
+      }
     }
 
     function formatTime(seconds) {
@@ -1346,6 +1544,49 @@
       });
     }
 
+    function renderBackgroundMedia(song) {
+      const generation = ++backgroundVideoGeneration;
+      const videoUrl = String(song.backgroundVideo || "").trim();
+
+      elements.blurBackground.style.backgroundImage = song.albumArt
+        ? `url("${String(song.albumArt).replaceAll('"', '\\"')}")`
+        : "linear-gradient(135deg, #2a2a32, #09090d)";
+
+      document.body.classList.remove("video-background-active");
+      elements.videoBackground.pause();
+      elements.videoBackground.removeAttribute("src");
+      elements.videoBackground.poster = song.albumArt || "";
+      elements.videoBackground.load();
+
+      if (!videoUrl) return;
+
+      const activateVideo = () => {
+        if (generation !== backgroundVideoGeneration) return;
+        document.body.classList.add("video-background-active");
+      };
+
+      const fallBack = () => {
+        if (generation !== backgroundVideoGeneration) return;
+        document.body.classList.remove("video-background-active");
+        elements.videoBackground.pause();
+        elements.videoBackground.removeAttribute("src");
+        elements.videoBackground.load();
+      };
+
+      elements.videoBackground.onplaying = activateVideo;
+      elements.videoBackground.onerror = fallBack;
+      elements.videoBackground.src = videoUrl;
+      elements.videoBackground.muted = true;
+      elements.videoBackground.loop = true;
+      elements.videoBackground.playsInline = true;
+      elements.videoBackground.load();
+
+      const playRequest = elements.videoBackground.play();
+      if (playRequest && typeof playRequest.then === "function") {
+        playRequest.then(activateVideo).catch(fallBack);
+      }
+    }
+
     function renderPublic(index) {
       const song = data.songs[index];
       if (!song) return;
@@ -1361,9 +1602,7 @@
       elements.description.hidden = !song.description;
       elements.albumArt.src = song.albumArt || "";
       elements.albumArt.alt = `${song.title} by ${song.artist} album artwork`;
-      elements.blurBackground.style.backgroundImage = song.albumArt
-        ? `url("${String(song.albumArt).replaceAll('"', '\\"')}")`
-        : "linear-gradient(135deg, #2a2a32, #09090d)";
+      renderBackgroundMedia(song);
 
       extractPalette(song.albumArt, song);
       renderLinks(song);
@@ -2026,42 +2265,106 @@
       animationFrame = requestAnimationFrame(drawVisualizer);
     }
 
-    function renderQueue() {
-      elements.songQueue.innerHTML = "";
-      data.songs.forEach((song, index) => {
-        const row = document.createElement("div");
-        row.className = `queue-item${index === data.selectedIndex ? " active" : ""}`;
+    function createQueueRow(song, index, mode, state) {
+      const row = document.createElement("div");
+      const isLive = index === state.index;
+      row.className = `queue-item${index === data.selectedIndex ? " active" : ""}${isLive ? " live" : ""}${mode === "archive" ? " archived" : ""}`;
 
-        const image = document.createElement("img");
-        image.className = "queue-thumb";
-        image.src = song.albumArt || "";
-        image.alt = "";
-        image.onerror = () => image.removeAttribute("src");
+      const image = document.createElement("img");
+      image.className = "queue-thumb";
+      image.src = song.albumArt || "";
+      image.alt = "";
+      image.onerror = () => image.removeAttribute("src");
 
-        const main = document.createElement("div");
-        main.className = "queue-main";
-        main.innerHTML = `<div class="queue-title">${escapeHtml(song.title)}</div><div class="queue-artist">${escapeHtml(song.artist)}</div>`;
-        main.addEventListener("click", () => selectEditorSong(index));
+      const main = document.createElement("div");
+      main.className = "queue-main";
+      const badge = isLive
+        ? '<span class="queue-badge live">Live</span>'
+        : mode === "archive"
+          ? '<span class="queue-badge">Past</span>'
+          : '<span class="queue-badge">Queued</span>';
+      const dateText = isLive
+        ? `Live now • started ${formatScheduleDate(songStartSerial(index))}`
+        : mode === "archive"
+          ? formatQueueDate(index)
+          : `Scheduled ${formatScheduleDate(songStartSerial(index))}`;
+      main.innerHTML = `
+        <div class="queue-title-line">
+          <div class="queue-title">${escapeHtml(song.title)}</div>
+          ${badge}
+        </div>
+        <div class="queue-artist">${escapeHtml(song.artist)}</div>
+        <div class="queue-date">${escapeHtml(dateText)}</div>
+      `;
+      main.addEventListener("click", () => selectEditorSong(index));
 
-        const actions = document.createElement("div");
-        actions.className = "queue-actions";
+      const actions = document.createElement("div");
+      actions.className = "queue-actions";
+
+      if (mode === "archive") {
+        const repeat = document.createElement("button");
+        repeat.className = "icon-button";
+        repeat.type = "button";
+        repeat.textContent = "↻";
+        repeat.setAttribute("aria-label", "Add a copy to the end of the queue");
+        repeat.title = "Feature this song again";
+        repeat.addEventListener("click", () => featureSongAgain(index));
+        actions.append(repeat);
+      } else if (!isLive) {
         const up = document.createElement("button");
         up.className = "icon-button";
         up.type = "button";
         up.textContent = "↑";
         up.setAttribute("aria-label", "Move up");
+        up.disabled = index <= state.index + 1;
         up.addEventListener("click", () => moveSong(index, -1));
+
         const down = document.createElement("button");
         down.className = "icon-button";
         down.type = "button";
         down.textContent = "↓";
         down.setAttribute("aria-label", "Move down");
+        down.disabled = index >= data.songs.length - 1;
         down.addEventListener("click", () => moveSong(index, 1));
         actions.append(up, down);
+      }
 
-        row.append(image, main, actions);
-        elements.songQueue.appendChild(row);
+      row.append(image, main, actions);
+      return row;
+    }
+
+    function renderQueue() {
+      const state = getRotationState();
+      elements.songQueue.innerHTML = "";
+      elements.songArchive.innerHTML = "";
+
+      const activeSongs = data.songs.slice(state.index);
+      const archivedIndices = Array.from({ length: state.index }, (_, index) => index).reverse();
+
+      activeSongs.forEach((song, offset) => {
+        const index = state.index + offset;
+        elements.songQueue.appendChild(createQueueRow(song, index, "active", state));
       });
+
+      archivedIndices.forEach(index => {
+        elements.songArchive.appendChild(createQueueRow(data.songs[index], index, "archive", state));
+      });
+
+      elements.activeQueueCount.textContent = String(activeSongs.length);
+      elements.archiveCount.textContent = String(archivedIndices.length);
+      elements.queueEmpty.hidden = activeSongs.length > 1;
+      elements.archiveEmpty.hidden = archivedIndices.length > 0;
+    }
+
+    function featureSongAgain(index) {
+      const source = data.songs[index];
+      if (!source) return;
+      const copy = clone(source);
+      data.songs.push(copy);
+      data.selectedIndex = data.songs.length - 1;
+      saveData();
+      renderAdmin();
+      renderPublic(data.selectedIndex);
     }
 
     function renderEditorFields() {
@@ -2076,6 +2379,7 @@
         : "No catalog details imported yet.";
       elements.descriptionInput.value = song.description;
       elements.artworkInput.value = song.albumArt;
+      elements.backgroundVideoInput.value = song.backgroundVideo;
       elements.previewInput.value = song.previewUrl;
       elements.appleMusicInput.value = song.links.appleMusic;
       elements.youtubeMusicInput.value = song.links.youtubeMusic;
@@ -2084,6 +2388,15 @@
       elements.previewStatus.textContent = "";
       elements.spotifyStatus.className = "status-line";
       elements.previewStatus.className = "status-line";
+
+      const state = getRotationState();
+      const selectedIsFuture = data.selectedIndex > state.index;
+      $("moveUp").disabled = !selectedIsFuture || data.selectedIndex <= state.index + 1;
+      $("moveDown").disabled = !selectedIsFuture || data.selectedIndex >= data.songs.length - 1;
+      $("deleteSong").disabled = data.selectedIndex <= state.index;
+      $("deleteSong").title = data.selectedIndex <= state.index
+        ? "Live and previously featured songs are locked to preserve the published schedule."
+        : "Delete selected queued song";
     }
 
     function renderAdmin() {
@@ -2101,8 +2414,9 @@
     }
 
     function moveSong(index, amount) {
+      const state = getRotationState();
       const target = index + amount;
-      if (target < 0 || target >= data.songs.length) return;
+      if (index <= state.index || target <= state.index || target >= data.songs.length) return;
       [data.songs[index], data.songs[target]] = [data.songs[target], data.songs[index]];
       data.selectedIndex = target;
       saveData();
@@ -2672,20 +2986,20 @@
 
     $("duplicateSong").addEventListener("click", () => {
       const copy = clone(currentEditorSong());
-      copy.title = `${copy.title} Copy`;
-      data.songs.splice(data.selectedIndex + 1, 0, copy);
-      data.selectedIndex += 1;
+      data.songs.push(copy);
+      data.selectedIndex = data.songs.length - 1;
       saveData();
       renderAdmin();
       renderPublic(data.selectedIndex);
     });
 
     $("deleteSong").addEventListener("click", () => {
-      if (data.songs.length <= 1) {
-        alert("The site needs at least one song.");
+      const state = getRotationState();
+      if (data.selectedIndex <= state.index) {
+        alert("The live song and archive are locked so the published schedule and history remain intact. Use ‘Feature selected again’ to add a past song back to the queue.");
         return;
       }
-      if (!confirm(`Delete \"${currentEditorSong().title}\"?`)) return;
+      if (!confirm(`Delete \"${currentEditorSong().title}\" from the future queue?`)) return;
       data.songs.splice(data.selectedIndex, 1);
       data.selectedIndex = Math.min(data.selectedIndex, data.songs.length - 1);
       saveData();
@@ -2707,6 +3021,13 @@
     bindSongInput(elements.artistInput, (song, value) => { song.artist = value || "Unknown Artist"; });
     bindSongInput(elements.descriptionInput, (song, value) => { song.description = value; });
     bindSongInput(elements.artworkInput, (song, value) => { song.albumArt = value; });
+    bindSongInput(elements.backgroundVideoInput, (song, value) => { song.backgroundVideo = value; });
+    $("clearBackgroundVideo").addEventListener("click", () => {
+      currentEditorSong().backgroundVideo = "";
+      elements.backgroundVideoInput.value = "";
+      saveData();
+      renderPublic(data.selectedIndex);
+    });
     bindSongInput(elements.previewInput, (song, value) => {
       song.previewUrl = value;
       song.previewSource = value ? "Custom in-page preview" : "";
